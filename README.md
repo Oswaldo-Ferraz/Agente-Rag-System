@@ -363,6 +363,10 @@ FastApi/
 ├── tests/
 │   ├── __init__.py
 │   └── test_chat.py         # Testes automatizados
+├── docs/                    # 📚 Documentação do projeto
+│   ├── README.md           # Índice da documentação
+│   ├── DEVELOPER_AI_PROMPT.md  # Prompt de desenvolvimento
+│   └── setup_vps.sh        # Script futuro para VPS
 ├── requirements.txt         # Dependências Python
 ├── .env.example            # Exemplo de configuração
 ├── docker-compose.yml      # Configuração Docker

@@ -81,8 +81,8 @@ Thumbs.db
 *.log
 logs/
 
-# Local directories that might contain sensitive data
-Agente-Rag-System/
-models/
-schemas/
-services/
+# Local directories that might contain sensitive data (removed - were empty folders)
+# Agente-Rag-System/ - removed
+# models/ - removed (empty)
+# schemas/ - removed (empty) 
+# services/ - removed (empty)
