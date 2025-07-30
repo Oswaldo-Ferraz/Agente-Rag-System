@@ -3,7 +3,7 @@ from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy_utils import UUIDType
 from sqlalchemy.orm import declarative_base
-from sqlalchemy.dialects.postgresql import VECTOR
+from pgvector.sqlalchemy import Vector
 
 from app.database import Base
 
@@ -17,6 +17,6 @@ class ChatInteraction(Base):
     answer = Column(Text)
     operator_name = Column(String(100))
     validated_by = Column(String(20), default="pending")
-    embedding = Column(VECTOR(1536))
+    embedding = Column(Vector(768))
     created_at = Column(TIMESTAMP, server_default=func.now())
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())

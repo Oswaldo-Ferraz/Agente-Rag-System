@@ -15,7 +15,12 @@ class Settings:
     PROJECT_NAME: str = os.getenv("PROJECT_NAME", "Chat System")
     DEBUG: bool = os.getenv("DEBUG", "True") == "True"
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    
+    # Configurações de Embeddings
     EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "mock")
+    EMBEDDING_FALLBACK: str = os.getenv("EMBEDDING_FALLBACK", "openai")
     EMBEDDING_DIMENSION: int = int(os.getenv("EMBEDDING_DIMENSION", 1536))
+    HUGGINGFACE_MODEL_NAME: str = os.getenv("HUGGINGFACE_MODEL_NAME", "neuralmind/bert-base-portuguese-cased")
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
 
 settings = Settings()

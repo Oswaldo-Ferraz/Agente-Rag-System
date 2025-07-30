@@ -136,8 +136,9 @@ async def health_check():
     try:
         # Verificar conexão com banco de dados
         from app.database import SessionLocal
+        from sqlalchemy import text
         db = SessionLocal()
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         db.close()
         db_status = "healthy"
     except Exception as e:

@@ -538,7 +538,8 @@ O sistema está preparado para:
 
 - **WhatsApp Business API**
 - **Telegram Bot API**
-- **Modelos de IA** (GPT, Claude, Llama)
+- **Modelos de IA** (GPT para respostas, Claude para análise, Llama local)
+- **HuggingFace Transformers** (embeddings reais, busca semântica avançada)
 - **Sistemas CRM** existentes
 - **Ferramentas de analytics**
 

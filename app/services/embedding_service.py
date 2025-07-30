@@ -1,242 +1,231 @@
 """
-Serviço de geração de embeddings para busca semântica.
-
-Este módulo implementa a geração de embeddings usando um modelo mock
-que será posteriormente substituído por um modelo real de IA.
+Serviço de Embeddings com suporte a HuggingFace (principal) e OpenAI (fallback)
 """
-
 import logging
-import numpy as np
+import random
 from typing import List, Optional
-from app.config import settings
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
 
+# Configuração de logging
 logger = logging.getLogger(__name__)
 
-
 class EmbeddingService:
-    """
-    Serviço para geração de embeddings de texto.
-    
-    Implementação inicial usa embeddings mock para desenvolvimento.
-    Preparado para integração futura com modelos reais (OpenAI, HuggingFace, etc.).
-    """
-    
-    def __init__(self):
-        """Inicializar o serviço de embeddings."""
-        self.model_name = settings.EMBEDDING_MODEL
-        self.dimension = settings.EMBEDDING_DIMENSION
-        logger.info(f"Inicializando EmbeddingService com modelo: {self.model_name}, dimensão: {self.dimension}")
-        
-        # Para desenvolvimento, usar embeddings mock
-        if self.model_name == "mock":
-            self._initialize_mock_embeddings()
-        else:
-            # Aqui seria a inicialização de modelos reais
-            raise NotImplementedError(f"Modelo {self.model_name} ainda não implementado")
-    
-    def _initialize_mock_embeddings(self):
-        """Inicializar sistema de embeddings mock para desenvolvimento."""
-        logger.info("Usando embeddings mock para desenvolvimento")
-        
-        # Banco de dados simulado de embeddings para palavras comuns
-        self.mock_embeddings = {
-            "boleto": self._generate_mock_embedding("boleto"),
-            "pagamento": self._generate_mock_embedding("pagamento"),
-            "fatura": self._generate_mock_embedding("fatura"),
-            "cobrança": self._generate_mock_embedding("cobrança"),
-            "suporte": self._generate_mock_embedding("suporte"),
-            "problema": self._generate_mock_embedding("problema"),
-            "erro": self._generate_mock_embedding("erro"),
-            "dúvida": self._generate_mock_embedding("dúvida"),
-            "ajuda": self._generate_mock_embedding("ajuda"),
-            "vendas": self._generate_mock_embedding("vendas"),
-            "produto": self._generate_mock_embedding("produto"),
-            "serviço": self._generate_mock_embedding("serviço"),
-        }
-    
-    def _generate_mock_embedding(self, seed_text: str) -> List[float]:
+    def __init__(self, model_type: str = "mock", fallback_type: str = "openai", 
+                 huggingface_model: str = "neuralmind/bert-base-portuguese-cased",
+                 openai_api_key: str = ""):
         """
-        Gerar embedding mock baseado em um texto seed.
+        Inicializa o serviço de embeddings com fallback automático
         
         Args:
-            seed_text: Texto base para gerar o embedding
-            
-        Returns:
-            Lista de floats representando o embedding
+            model_type: Tipo do modelo principal ('huggingface', 'openai', 'mock')
+            fallback_type: Tipo do modelo de fallback ('openai', 'mock')
+            huggingface_model: Nome do modelo HuggingFace
+            openai_api_key: Chave da API OpenAI
         """
-        # Usar hash do texto como seed para reprodutibilidade
-        np.random.seed(hash(seed_text) % (2**32))
+        self.model_type = model_type
+        self.fallback_type = fallback_type
+        self.huggingface_model = huggingface_model
+        self.openai_api_key = openai_api_key
         
-        # Gerar vetor aleatório normalizado
-        embedding = np.random.normal(0, 1, self.dimension)
+        # Modelos carregados sob demanda
+        self._hf_model = None
+        self._openai_client = None
         
-        # Normalizar para magnitude unitária
-        embedding = embedding / np.linalg.norm(embedding)
-        
-        return embedding.tolist()
+        logger.info(f"EmbeddingService inicializado - Principal: {model_type}, Fallback: {fallback_type}")
+    
+    def _load_huggingface_model(self):
+        """Carrega o modelo HuggingFace sob demanda"""
+        if self._hf_model is None:
+            try:
+                from sentence_transformers import SentenceTransformer
+                logger.info(f"Carregando modelo HuggingFace: {self.huggingface_model}")
+                self._hf_model = SentenceTransformer(self.huggingface_model)
+                logger.info("Modelo HuggingFace carregado com sucesso")
+            except Exception as e:
+                logger.error(f"Erro ao carregar modelo HuggingFace: {e}")
+                raise
+        return self._hf_model
+    
+    def _load_openai_client(self):
+        """Carrega o cliente OpenAI sob demanda"""
+        if self._openai_client is None:
+            try:
+                import openai
+                logger.info("Configurando cliente OpenAI")
+                self._openai_client = openai.OpenAI(api_key=self.openai_api_key)
+                logger.info("Cliente OpenAI configurado com sucesso")
+            except Exception as e:
+                logger.error(f"Erro ao configurar cliente OpenAI: {e}")
+                raise
+        return self._openai_client
+    
+    def _generate_huggingface_embedding(self, text: str) -> List[float]:
+        """Gera embedding usando HuggingFace"""
+        try:
+            model = self._load_huggingface_model()
+            embedding = model.encode(text, convert_to_tensor=False)
+            return embedding.tolist()
+        except Exception as e:
+            logger.error(f"Erro ao gerar embedding HuggingFace: {e}")
+            raise
+    
+    def _generate_openai_embedding(self, text: str) -> List[float]:
+        """Gera embedding usando OpenAI"""
+        try:
+            client = self._load_openai_client()
+            response = client.embeddings.create(
+                model="text-embedding-3-small",
+                input=text
+            )
+            return response.data[0].embedding
+        except Exception as e:
+            logger.error(f"Erro ao gerar embedding OpenAI: {e}")
+            raise
+    
+    def _generate_mock_embedding(self, text: str) -> List[float]:
+        """Gera embedding mock para desenvolvimento"""
+        # Set seed baseado no hash do texto para consistência
+        random.seed(hash(text) % 2**32)
+        return [random.uniform(-1, 1) for _ in range(1536)]
     
     def generate_embedding(self, text: str) -> List[float]:
         """
-        Gerar embedding para um texto.
+        Gera embedding para um texto com fallback automático
         
         Args:
             text: Texto para gerar embedding
             
         Returns:
-            Lista de floats representando o embedding
-            
-        Raises:
-            ValueError: Se o texto estiver vazio
-            Exception: Para erros na geração do embedding
+            Lista com valores do embedding
         """
         if not text or not text.strip():
-            raise ValueError("Texto não pode estar vazio")
+            logger.warning("Texto vazio fornecido para embedding")
+            return [0.0] * 1536
         
-        text = text.strip().lower()
-        
+        # Tenta o modelo principal
         try:
-            if self.model_name == "mock":
-                return self._generate_mock_embedding_for_text(text)
-            else:
-                # Aqui seria a chamada para modelos reais
-                raise NotImplementedError(f"Modelo {self.model_name} não implementado")
-                
+            if self.model_type == "huggingface":
+                logger.debug("Gerando embedding com HuggingFace")
+                return self._generate_huggingface_embedding(text)
+            elif self.model_type == "openai":
+                logger.debug("Gerando embedding com OpenAI")
+                return self._generate_openai_embedding(text)
+            elif self.model_type == "mock":
+                logger.debug("Gerando embedding mock")
+                return self._generate_mock_embedding(text)
         except Exception as e:
-            logger.error(f"Erro ao gerar embedding para texto '{text[:50]}...': {str(e)}")
-            raise Exception(f"Falha na geração do embedding: {str(e)}")
-    
-    def _generate_mock_embedding_for_text(self, text: str) -> List[float]:
-        """
-        Gerar embedding mock inteligente baseado no conteúdo do texto.
-        
-        Args:
-            text: Texto para análise
+            logger.warning(f"Falha no modelo principal {self.model_type}: {e}")
             
-        Returns:
-            Embedding mock que considera similaridade semântica básica
-        """
-        # Procurar por palavras-chave conhecidas
-        words = text.split()
-        found_embeddings = []
+            # Tenta o fallback
+            try:
+                logger.info(f"Tentando fallback para {self.fallback_type}")
+                if self.fallback_type == "openai":
+                    return self._generate_openai_embedding(text)
+                elif self.fallback_type == "mock":
+                    return self._generate_mock_embedding(text)
+            except Exception as fallback_error:
+                logger.error(f"Falha no fallback {self.fallback_type}: {fallback_error}")
+                
+                # Último recurso: mock
+                logger.warning("Usando embedding mock como último recurso")
+                return self._generate_mock_embedding(text)
         
-        for word in words:
-            if word in self.mock_embeddings:
-                found_embeddings.append(np.array(self.mock_embeddings[word]))
-        
-        if found_embeddings:
-            # Fazer média dos embeddings encontrados
-            base_embedding = np.mean(found_embeddings, axis=0)
-            
-            # Adicionar pequeno ruído baseado no texto completo
-            np.random.seed(hash(text) % (2**32))
-            noise = np.random.normal(0, 0.1, self.dimension)
-            
-            final_embedding = base_embedding + noise
-        else:
-            # Se não encontrou palavras-chave, gerar baseado no hash do texto
-            final_embedding = self._generate_mock_embedding(text)
-            final_embedding = np.array(final_embedding)
-        
-        # Normalizar
-        final_embedding = final_embedding / np.linalg.norm(final_embedding)
-        
-        return final_embedding.tolist()
+        # Fallback final
+        logger.error("Todos os métodos falharam, retornando embedding zero")
+        return [0.0] * 1536
     
     def generate_batch_embeddings(self, texts: List[str]) -> List[List[float]]:
         """
-        Gerar embeddings para uma lista de textos.
+        Gera embeddings em lote para múltiplos textos
         
         Args:
-            texts: Lista de textos para gerar embeddings
+            texts: Lista de textos
             
         Returns:
-            Lista de embeddings correspondentes
-            
-        Raises:
-            ValueError: Se a lista estiver vazia
+            Lista de embeddings
         """
         if not texts:
-            raise ValueError("Lista de textos não pode estar vazia")
+            return []
         
-        logger.info(f"Gerando embeddings para {len(texts)} textos")
+        logger.info(f"Gerando {len(texts)} embeddings em lote")
         
-        embeddings = []
-        for i, text in enumerate(texts):
+        # Para HuggingFace, podemos usar processamento em lote
+        if self.model_type == "huggingface":
             try:
-                embedding = self.generate_embedding(text)
-                embeddings.append(embedding)
+                model = self._load_huggingface_model()
+                embeddings = model.encode(texts, convert_to_tensor=False)
+                return embeddings.tolist()
             except Exception as e:
-                logger.error(f"Erro ao gerar embedding para texto {i}: {str(e)}")
-                # Em caso de erro, usar embedding zero para não quebrar o batch
-                embeddings.append([0.0] * self.dimension)
+                logger.warning(f"Falha no batch HuggingFace: {e}")
+        
+        # Para outros modelos ou fallback, processa individualmente
+        embeddings = []
+        for text in texts:
+            embeddings.append(self.generate_embedding(text))
         
         return embeddings
     
     def calculate_similarity(self, embedding1: List[float], embedding2: List[float]) -> float:
         """
-        Calcular similaridade de cosseno entre dois embeddings.
+        Calcula similaridade coseno entre dois embeddings
         
         Args:
             embedding1: Primeiro embedding
             embedding2: Segundo embedding
             
         Returns:
-            Similaridade de cosseno (0.0 a 1.0)
-            
-        Raises:
-            ValueError: Se os embeddings têm dimensões diferentes
+            Similaridade coseno (0-1)
         """
-        if len(embedding1) != len(embedding2):
-            raise ValueError("Embeddings devem ter a mesma dimensão")
-        
-        # Converter para arrays numpy
-        vec1 = np.array(embedding1)
-        vec2 = np.array(embedding2)
-        
-        # Calcular similaridade de cosseno
-        dot_product = np.dot(vec1, vec2)
-        norm1 = np.linalg.norm(vec1)
-        norm2 = np.linalg.norm(vec2)
-        
-        if norm1 == 0 or norm2 == 0:
+        try:
+            # Converte para arrays numpy
+            emb1 = np.array(embedding1).reshape(1, -1)
+            emb2 = np.array(embedding2).reshape(1, -1)
+            
+            # Calcula similaridade coseno
+            similarity = cosine_similarity(emb1, emb2)[0][0]
+            
+            # Garante que o resultado esteja entre 0 e 1
+            return max(0.0, min(1.0, similarity))
+            
+        except Exception as e:
+            logger.error(f"Erro ao calcular similaridade: {e}")
             return 0.0
-        
-        similarity = dot_product / (norm1 * norm2)
-        
-        # Normalizar para range 0-1
-        similarity = (similarity + 1) / 2
-        
-        return float(similarity)
     
     def get_model_info(self) -> dict:
         """
-        Obter informações sobre o modelo atual.
+        Retorna informações sobre os modelos configurados
         
         Returns:
-            Dicionário com informações do modelo
+            Dicionário com informações dos modelos
         """
         return {
-            "model_name": self.model_name,
-            "dimension": self.dimension,
-            "is_mock": self.model_name == "mock",
-            "status": "ready"
+            "primary_model": self.model_type,
+            "fallback_model": self.fallback_type,
+            "huggingface_model": self.huggingface_model,
+            "openai_configured": bool(self.openai_api_key),
+            "embedding_dimension": 1536
         }
 
 
-# Instância global do serviço (singleton)
-_embedding_service: Optional[EmbeddingService] = None
-
+# Instância global do serviço
+embedding_service: Optional[EmbeddingService] = None
 
 def get_embedding_service() -> EmbeddingService:
     """
-    Obter instância singleton do serviço de embeddings.
-    
-    Returns:
-        Instância do EmbeddingService
+    Retorna a instância global do serviço de embeddings
+    Cria uma nova se não existir
     """
-    global _embedding_service
+    global embedding_service
     
-    if _embedding_service is None:
-        _embedding_service = EmbeddingService()
+    if embedding_service is None:
+        from app.config import settings
+        
+        embedding_service = EmbeddingService(
+            model_type=settings.EMBEDDING_MODEL,
+            fallback_type=settings.EMBEDDING_FALLBACK,
+            huggingface_model=settings.HUGGINGFACE_MODEL_NAME,
+            openai_api_key=settings.OPENAI_API_KEY
+        )
     
-    return _embedding_service
+    return embedding_service

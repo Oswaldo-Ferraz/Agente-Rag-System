@@ -8,3 +8,10 @@ numpy
 pydantic[email]
 pytest
 httpx
+
+# AI/ML Dependencies
+transformers
+sentence-transformers
+torch
+openai
+scikit-learn
