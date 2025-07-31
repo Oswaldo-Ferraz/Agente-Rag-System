@@ -5,7 +5,11 @@
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {},
     "ghcr.io/devcontainers/features/git:1": {},
-    "ghcr.io/devcontainers/features/github-cli:1": {}
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/postgres:1": {
+      "version": "15",
+      "initDbArgs": "--auth-host=trust --auth-local=trust"
+    }
   },
 
   "forwardPorts": [8000, 5432, 6379],
@@ -24,8 +28,8 @@
     }
   },
 
-  "postCreateCommand": "pip install -r requirements.txt",
-  "postStartCommand": "python3 start_server.py",
+  "postCreateCommand": "pip install -r requirements.txt && sudo service postgresql start && sudo -u postgres createdb chat_system_dev && sudo -u postgres psql -d chat_system_dev -c \"CREATE USER chat_user WITH PASSWORD 'codespace_password'; GRANT ALL PRIVILEGES ON DATABASE chat_system_dev TO chat_user; CREATE EXTENSION IF NOT EXISTS vector;\"",
+  "postStartCommand": "sudo service postgresql start && python3 start_server.py",
 
   "customizations": {
     "vscode": {
@@ -51,6 +55,12 @@
   },
 
   "remoteEnv": {
+    "DATABASE_URL": "postgresql://chat_user:codespace_password@localhost:5432/chat_system_dev",
+    "DB_HOST": "localhost",
+    "DB_PORT": "5432",
+    "DB_NAME": "chat_system_dev",
+    "DB_USER": "chat_user",
+    "DB_PASSWORD": "codespace_password",
     "API_V1_PREFIX": "/api/v1",
     "PROJECT_NAME": "Agente IA RAG Professional",
     "DEBUG": "true",
