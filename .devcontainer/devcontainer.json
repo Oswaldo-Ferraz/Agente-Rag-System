@@ -34,8 +34,8 @@
     }
   },
 
-  "postCreateCommand": "pip install -r requirements.txt && sudo service postgresql start && sudo -u postgres createdb chat_system_dev && sudo -u postgres psql -d chat_system_dev -c \"CREATE USER chat_user WITH PASSWORD 'codespace_password'; GRANT ALL PRIVILEGES ON DATABASE chat_system_dev TO chat_user; CREATE EXTENSION IF NOT EXISTS vector;\" && echo 'vscode ALL=(ALL) NOPASSWD: ALL' | sudo tee -a /etc/sudoers && echo \"vscode:${VSCODE_PASSWORD:-vscode123}\" | sudo chpasswd",
-  "postStartCommand": "sudo service postgresql start && python3 start_server.py",
+  "postCreateCommand": "pip install -r requirements.txt && sudo service postgresql start && sudo -u postgres createdb chat_system_dev && sudo -u postgres psql -d chat_system_dev -c \"CREATE USER chat_user WITH PASSWORD 'codespace_password'; GRANT ALL PRIVILEGES ON DATABASE chat_system_dev TO chat_user; CREATE EXTENSION IF NOT EXISTS vector;\" && echo 'vscode ALL=(ALL) NOPASSWD: ALL' | sudo tee -a /etc/sudoers && echo \"vscode:${VSCODE_PASSWORD:-vscode123}\" | sudo chpasswd && sudo service ssh start",
+  "postStartCommand": "sudo service postgresql start && sudo service ssh start && python3 start_server.py",
 
   "customizations": {
     "vscode": {
