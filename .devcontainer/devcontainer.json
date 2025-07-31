@@ -1,0 +1,67 @@
+{
+  "name": "Agente IA RAG Professional",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+
+  "forwardPorts": [8000, 5432, 6379],
+  "portsAttributes": {
+    "8000": {
+      "label": "FastAPI Server",
+      "visibility": "public"
+    },
+    "5432": {
+      "label": "PostgreSQL",
+      "visibility": "private"
+    },
+    "6379": {
+      "label": "Redis",
+      "visibility": "private"
+    }
+  },
+
+  "postCreateCommand": "pip install -r requirements.txt",
+  "postStartCommand": "python3 start_server.py",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-python.black-formatter",
+        "bradlc.vscode-tailwindcss",
+        "ms-vscode.vscode-json",
+        "redhat.vscode-yaml",
+        "ms-vscode.vscode-docker"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.linting.enabled": true,
+        "python.linting.pylintEnabled": true,
+        "python.formatting.provider": "black",
+        "editor.formatOnSave": true,
+        "files.autoSave": "afterDelay",
+        "terminal.integrated.shell.linux": "/bin/bash"
+      }
+    }
+  },
+
+  "remoteEnv": {
+    "API_V1_PREFIX": "/api/v1",
+    "PROJECT_NAME": "Agente IA RAG Professional",
+    "DEBUG": "true",
+    "LOG_LEVEL": "INFO",
+    "EMBEDDING_MODEL": "mock",
+    "EMBEDDING_FALLBACK": "openai",
+    "EMBEDDING_DIMENSION": "1536",
+    "API_KEY": "agente-ia-rag-professional-key-2025"
+  },
+
+  "mounts": [
+    "source=${localWorkspaceFolder}/.env,target=/workspaces/${localWorkspaceFolderBasename}/.env,type=bind,consistency=cached"
+  ]
+}
