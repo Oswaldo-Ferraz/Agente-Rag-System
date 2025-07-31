@@ -15,6 +15,9 @@
     }
   },
 
+  "containerUser": "vscode",
+  "remoteUser": "vscode",
+
   "forwardPorts": [8000, 5432, 6379],
   "portsAttributes": {
     "8000": {
@@ -31,7 +34,7 @@
     }
   },
 
-  "postCreateCommand": "pip install -r requirements.txt && sudo service postgresql start && sudo -u postgres createdb chat_system_dev && sudo -u postgres psql -d chat_system_dev -c \"CREATE USER chat_user WITH PASSWORD 'codespace_password'; GRANT ALL PRIVILEGES ON DATABASE chat_system_dev TO chat_user; CREATE EXTENSION IF NOT EXISTS vector;\"",
+  "postCreateCommand": "pip install -r requirements.txt && sudo service postgresql start && sudo -u postgres createdb chat_system_dev && sudo -u postgres psql -d chat_system_dev -c \"CREATE USER chat_user WITH PASSWORD 'codespace_password'; GRANT ALL PRIVILEGES ON DATABASE chat_system_dev TO chat_user; CREATE EXTENSION IF NOT EXISTS vector;\" && echo 'vscode ALL=(ALL) NOPASSWD: ALL' | sudo tee -a /etc/sudoers",
   "postStartCommand": "sudo service postgresql start && python3 start_server.py",
 
   "customizations": {
