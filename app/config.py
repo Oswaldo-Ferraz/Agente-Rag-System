@@ -22,5 +22,8 @@ class Settings:
     EMBEDDING_DIMENSION: int = int(os.getenv("EMBEDDING_DIMENSION", 1536))
     HUGGINGFACE_MODEL_NAME: str = os.getenv("HUGGINGFACE_MODEL_NAME", "neuralmind/bert-base-portuguese-cased")
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    
+    # Configurações de Segurança
+    API_KEY: str = os.getenv("API_KEY", "chat-system-api-key-dev")
 
 settings = Settings()

@@ -3,6 +3,7 @@ uvicorn[standard]
 python-dotenv
 sqlalchemy
 psycopg2-binary
+pgvector
 sqlalchemy-utils
 numpy
 pydantic[email]

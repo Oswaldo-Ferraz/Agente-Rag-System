@@ -10,10 +10,16 @@ Sistema completo de chat/atendimento com:
 
 import logging
 import sys
+import socket
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+
+# Forçar IPv4 apenas
+socket.has_ipv6 = False
+os.environ['PREFER_IPV4'] = '1'
 
 from app.config import settings
 from app.database import engine, Base
@@ -55,6 +61,17 @@ async def lifespan(app: FastAPI):
         logger.error(f"Erro na inicialização: {str(e)}")
         raise
     
+    # Pre-carregar o modelo de embedding para acelerar primeira requisição
+    try:
+        logger.info("Pre-carregando modelo de embedding...")
+        from app.services.embedding_service import EmbeddingService
+        embedding_service = EmbeddingService()
+        # Gerar um embedding de teste para carregar o modelo
+        embedding_service.generate_embedding("Teste de inicialização")
+        logger.info("Modelo de embedding pre-carregado com sucesso!")
+    except Exception as e:
+        logger.warning(f"Erro ao pre-carregar modelo: {str(e)}")
+    
     yield
     
     # Shutdown: Limpeza se necessária
@@ -66,6 +83,14 @@ app = FastAPI(
     title=settings.PROJECT_NAME,
     description="""
     Sistema completo de chat/atendimento com busca semântica.
+    
+    ## 🔐 Autenticação
+    
+    **IMPORTANTE**: Esta API requer autenticação via API Key!
+    
+    - **Header requerido**: `X-API-Key: sua-chave-api`
+    - **Sem a chave**: Retorna 401 Unauthorized
+    - **Para obter acesso**: Entre em contato com o administrador
     
     ## Funcionalidades
     
@@ -123,6 +148,22 @@ async def root():
         "status": "healthy",
         "docs_url": "/docs" if settings.DEBUG else "disabled",
         "debug_mode": settings.DEBUG
+    }
+
+
+@app.get("/n8n-ping", tags=["n8n"])
+async def n8n_ping():
+    """
+    Endpoint específico para testar conectividade com N8N.
+    Endpoint simples sem parâmetros para facilitar testes.
+    """
+    return {
+        "status": "success",
+        "message": "N8N pode conectar! Servidor FastAPI funcionando perfeitamente",
+        "timestamp": "2025-07-30T03:18:00Z",
+        "server": "FastAPI Chat System",
+        "version": "1.0.0",
+        "n8n_ready": True
     }
 
 

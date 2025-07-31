@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Configurações do banco
-DATABASE_URL = "postgresql://postgres:postgres123@localhost:5432/chat_system_dev"
+DATABASE_URL = "postgresql://chat_user@localhost:5432/chat_system_dev"
 
 def create_database_and_tables():
     """Criar banco de dados e tabelas"""

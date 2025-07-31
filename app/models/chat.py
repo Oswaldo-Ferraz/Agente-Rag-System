@@ -13,6 +13,7 @@ class ChatInteraction(Base):
     id = Column(Integer, primary_key=True, index=True)
     client_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     sector = Column(String(50), nullable=False, index=True)
+    tag = Column(String(100), nullable=False, index=True, default="geral")
     message = Column(Text, nullable=False)
     answer = Column(Text)
     operator_name = Column(String(100))

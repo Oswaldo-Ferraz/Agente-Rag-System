@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
+from app.security import get_api_key
 from app.schemas.chat import (
     ChatMessageCreate, 
     ChatMessageResponse, 
@@ -52,22 +53,50 @@ def get_db():
         db.close()
 
 
-@router.post(
-    "/",
-    response_model=ChatMessageResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Criar nova mensagem",
-    description="Cria uma nova mensagem de chat com geração automática de embedding",
-    responses={
-        201: {"description": "Mensagem criada com sucesso"},
-        400: {"model": ErrorResponse, "description": "Dados inválidos"},
-        500: {"model": ErrorResponse, "description": "Erro interno do servidor"}
+@router.get("/n8n-ping", response_model=dict, status_code=status.HTTP_200_OK)
+async def n8n_ping():
+    """
+    Endpoint simples de ping para testar conectividade do N8N - sem parâmetros.
+    """
+    return {
+        "status": "success",
+        "message": "Pong! Servidor FastAPI está funcionando",
+        "timestamp": "2025-07-30T03:15:00Z",
+        "server": "FastAPI Chat System",
+        "version": "1.0.0"
     }
-)
+
+
+@router.post("/test", response_model=dict, status_code=status.HTTP_200_OK)
+async def test_n8n(message_data: ChatMessageCreate):
+    """
+    Endpoint de teste rápido para N8N - sem processamento de embedding.
+    """
+    try:
+        return {
+            "status": "success",
+            "message": "N8N conectado com sucesso!",
+            "received": {
+                "client_id": str(message_data.client_id),
+                "sector": message_data.sector,
+                "message": message_data.message
+            },
+            "timestamp": "2025-07-30T00:00:00Z"
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e),
+            "timestamp": "2025-07-30T00:00:00Z"
+        }
+
+
+@router.post("", response_model=ChatMessageResponse, status_code=status.HTTP_201_CREATED)
 def create_message(
     message_data: ChatMessageCreate,
     db: Session = Depends(get_db),
-    chat_service = Depends(get_chat_service)
+    chat_service = Depends(get_chat_service),
+    api_key: str = Depends(get_api_key)
 ):
     """
     Criar nova mensagem de chat.
@@ -116,7 +145,8 @@ def create_message(
 def get_message(
     message_id: int,
     db: Session = Depends(get_db),
-    chat_service = Depends(get_chat_service)
+    chat_service = Depends(get_chat_service),
+    api_key: str = Depends(get_api_key)
 ):
     """
     Buscar mensagem específica por ID.

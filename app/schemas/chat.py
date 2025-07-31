@@ -11,7 +11,7 @@ Este módulo contém os esquemas de dados para:
 from datetime import datetime
 from typing import Optional, List
 from uuid import UUID
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, root_validator
 import logging
 
 logger = logging.getLogger(__name__)
@@ -21,16 +21,41 @@ class ChatMessageBase(BaseModel):
     """Schema base para mensagens de chat."""
     
     client_id: UUID = Field(..., description="ID único do cliente")
-    sector: str = Field(..., min_length=1, max_length=50, description="Setor do atendimento")
+    sector: Optional[str] = Field(default="geral", min_length=1, max_length=50, description="Setor do atendimento")
+    tag: Optional[str] = Field(default="geral", max_length=100, description="Tag para categorização adicional")
     message: str = Field(..., min_length=1, max_length=10000, description="Mensagem do cliente")
     
-    @validator('sector')
+    @validator('sector', pre=True, always=True)
     def validate_sector(cls, v):
-        """Validar se o setor é válido."""
+        """Validar e normalizar setor. Se não fornecido ou vazio, usa 'geral'."""
+        # Se valor não fornecido, None ou vazio após strip, usar 'geral'
+        if v is None or (isinstance(v, str) and not v.strip()):
+            v = "geral"
+            logger.info("Setor não fornecido ou vazio, usando 'geral' como padrão")
+        
+        # Normalizar para minúsculo e remover espaços
+        v = str(v).strip().lower()
+        
+        # Validar se está na lista de setores válidos
         valid_sectors = ['financeiro', 'suporte', 'vendas', 'admin', 'geral']
-        if v.lower() not in valid_sectors:
-            logger.warning(f"Setor '{v}' não está na lista de setores válidos: {valid_sectors}")
-        return v.lower()
+        if v not in valid_sectors:
+            logger.warning(f"Setor '{v}' não está na lista de setores válidos: {valid_sectors}, usando 'geral'")
+            v = "geral"
+        
+        return v
+    
+    @validator('tag', pre=True, always=True)
+    def validate_tag(cls, v):
+        """Validar e normalizar tag. Se não fornecido ou vazio, usa 'geral'."""
+        # Se valor não fornecido, None ou vazio após strip, usar 'geral'
+        if v is None or (isinstance(v, str) and not v.strip()):
+            v = "geral"
+            logger.info("Tag não fornecida ou vazia, usando 'geral' como padrão")
+        
+        # Normalizar para minúsculo e remover espaços
+        v = str(v).strip().lower()
+        
+        return v
     
     @validator('message')
     def validate_message(cls, v):
@@ -40,9 +65,52 @@ class ChatMessageBase(BaseModel):
         return v.strip()
 
 
-class ChatMessageCreate(ChatMessageBase):
+class ChatMessageCreate(BaseModel):
     """Schema para criação de novas mensagens."""
-    pass
+    
+    client_id: UUID = Field(..., description="ID único do cliente")
+    sector: str = Field(default="geral", max_length=50, description="Setor do atendimento")
+    tag: Optional[str] = Field(default="geral", max_length=100, description="Tag para categorização adicional")
+    message: str = Field(..., min_length=1, max_length=10000, description="Mensagem do cliente")
+    
+    @validator('sector', pre=True, always=True)
+    def validate_sector(cls, v):
+        """Validar e normalizar setor. Se não fornecido ou vazio, usa 'geral'."""
+        # Se valor não fornecido, None ou vazio após strip, usar 'geral'
+        if v is None or (isinstance(v, str) and not v.strip()):
+            v = "geral"
+            logger.info("Setor não fornecido ou vazio, usando 'geral' como padrão")
+        
+        # Normalizar para minúsculo e remover espaços
+        v = str(v).strip().lower()
+        
+        # Validar se está na lista de setores válidos
+        valid_sectors = ['financeiro', 'suporte', 'vendas', 'admin', 'geral']
+        if v not in valid_sectors:
+            logger.warning(f"Setor '{v}' não está na lista de setores válidos: {valid_sectors}, usando 'geral'")
+            v = "geral"
+        
+        return v
+    
+    @validator('tag', pre=True, always=True)
+    def validate_tag(cls, v):
+        """Validar e normalizar tag. Se não fornecido ou vazio, usa 'geral'."""
+        # Se valor não fornecido, None ou vazio após strip, usar 'geral'
+        if v is None or (isinstance(v, str) and not v.strip()):
+            v = "geral"
+            logger.info("Tag não fornecida ou vazia, usando 'geral' como padrão")
+        
+        # Normalizar para minúsculo e remover espaços
+        v = str(v).strip().lower()
+        
+        return v
+    
+    @validator('message')
+    def validate_message(cls, v):
+        """Validar se a mensagem não está vazia após trim."""
+        if not v.strip():
+            raise ValueError('Mensagem não pode estar vazia')
+        return v.strip()
 
 
 class ChatMessageUpdate(BaseModel):

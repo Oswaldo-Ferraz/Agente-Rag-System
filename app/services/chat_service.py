@@ -58,6 +58,7 @@ class ChatService:
             db_message = ChatInteraction(
                 client_id=message_data.client_id,
                 sector=message_data.sector,
+                tag=message_data.tag,
                 message=message_data.message,
                 embedding=embedding
             )
@@ -210,38 +211,69 @@ class ChatService:
             query_embedding = self.embedding_service.generate_embedding(search_params.query)
             logger.debug(f"Embedding da query gerado com {len(query_embedding)} dimensões")
             
-            # Construir query SQL para busca por similaridade
-            base_query = db.query(
-                ChatInteraction,
-                text("1 - (embedding <=> :query_embedding) as similarity_score")
-            ).filter(
-                ChatInteraction.embedding.isnot(None)
-            )
+            # Construir SQL diretamente para usar pgvector corretamente
+            # Converter embedding para string formato PostgreSQL
+            query_embedding_str = f"[{','.join(map(str, query_embedding))}]"
             
-            # Aplicar filtros opcionais
+            # Usar f-string para inserir diretamente o embedding no SQL
+            sql_query = text(f"""
+                SELECT *, 1 - (embedding <=> '{query_embedding_str}'::vector) as similarity_score 
+                FROM chat_interactions 
+                WHERE embedding IS NOT NULL 
+                AND 1 - (embedding <=> '{query_embedding_str}'::vector) >= :threshold
+                ORDER BY embedding <=> '{query_embedding_str}'::vector
+                LIMIT :limit
+            """)
+            
+            # Aplicar filtros SQL com WHERE adicional se necessário
+            filter_conditions = []
+            params = {
+                'threshold': search_params.similarity_threshold,
+                'limit': search_params.limit
+            }
+            
             if search_params.client_id:
-                base_query = base_query.filter(ChatInteraction.client_id == search_params.client_id)
-                logger.debug(f"Filtro por cliente aplicado: {search_params.client_id}")
-            
+                filter_conditions.append("client_id = :client_id")
+                params['client_id'] = search_params.client_id
+                
             if search_params.sector:
-                base_query = base_query.filter(ChatInteraction.sector == search_params.sector)
-                logger.debug(f"Filtro por setor aplicado: {search_params.sector}")
+                filter_conditions.append("sector = :sector")
+                params['sector'] = search_params.sector
             
-            # Aplicar filtro de similaridade mínima e ordenar por relevância
-            base_query = base_query.filter(
-                text("1 - (embedding <=> :query_embedding) >= :threshold")
-            ).order_by(
-                text("embedding <=> :query_embedding")
-            ).limit(search_params.limit)
+            if filter_conditions:
+                # Atualizar SQL com filtros adicionais
+                where_clause = " AND " + " AND ".join(filter_conditions)
+                sql_query = text(f"""
+                    SELECT *, 1 - (embedding <=> '{query_embedding_str}'::vector) as similarity_score 
+                    FROM chat_interactions 
+                    WHERE embedding IS NOT NULL 
+                    AND 1 - (embedding <=> '{query_embedding_str}'::vector) >= :threshold
+                    {where_clause}
+                    ORDER BY embedding <=> '{query_embedding_str}'::vector
+                    LIMIT :limit
+                """)
             
             # Executar query
-            results = base_query.params(
-                query_embedding=query_embedding,
-                threshold=search_params.similarity_threshold
-            ).all()
+            result = db.execute(sql_query, params)
+            rows = result.fetchall()
             
-            # Converter resultados para formato esperado
-            search_results = [(message, float(score)) for message, score in results]
+            # Converter resultados para objetos ChatInteraction
+            search_results = []
+            for row in rows:
+                # Criar objeto ChatInteraction a partir do resultado
+                interaction = ChatInteraction(
+                    id=row.id,
+                    client_id=row.client_id,
+                    sector=row.sector,
+                    message=row.message,
+                    answer=row.answer,
+                    operator_name=row.operator_name,
+                    validated_by=row.validated_by,
+                    embedding=row.embedding,
+                    created_at=row.created_at,
+                    updated_at=row.updated_at
+                )
+                search_results.append((interaction, float(row.similarity_score)))
             
             logger.info(f"Busca semântica retornou {len(search_results)} resultados")
             return search_results
