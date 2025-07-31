@@ -9,6 +9,9 @@
     "ghcr.io/devcontainers/features/postgres:1": {
       "version": "15",
       "initDbArgs": "--auth-host=trust --auth-local=trust"
+    },
+    "ghcr.io/devcontainers/features/sshd:1": {
+      "version": "latest"
     }
   },
 
